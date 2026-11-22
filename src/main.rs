@@ -90,7 +90,7 @@ fn read_blocks(
             Err(err) => {
                 bar.suspend(|| {
                     color_println!(
-                        Some(Color::Red), false,
+                        Some(Color::Red), None, false,
                         "{}",
                         format!(
                             "Read error at block {} (offset {}): {}",
@@ -136,7 +136,7 @@ fn write_blocks(drive: &mut dyn device::Device, spot_blocks: &Vec<BlockIdx>, dat
             Err(err) => {
                 bar.suspend(|| {
                     color_println!(
-                        Some(Color::Red), false,
+                        Some(Color::Red), None, false,
                         "{}",
                         format!(
                             "Write error at block {} (offset {}): {}",
@@ -248,16 +248,16 @@ enum BlockReport {
 
 /// Print the validation map to stdout, with header and legend.
 fn print_validation_map(validation_map: &Vec<BlockReport>, map_width: usize) {
-    color_println!(None, true, "\nValidation map:");
+    color_println!(None, None, true, "\nValidation map:");
     for i in 0..validation_map.len() {
         match validation_map[i] {
-            BlockReport::Validated => color_print!(Some(Color::Green), false, "◼"),
-            BlockReport::ReadError => color_print!(Some(Color::Blue), false, "R"),
-            BlockReport::ReadSuccessful => color_print!(Some(Color::Green), false, "R"),
-            BlockReport::WriteError => color_print!(Some(Color::Yellow), false, "W"),
-            BlockReport::NoStorage => color_print!(Some(Color::Red), false, "✖"),
+            BlockReport::Validated => color_print!(Some(Color::Green), Some(Color::Green), false, "O"),
+            BlockReport::ReadError => color_print!(Some(Color::Blue), None, false, "R"),
+            BlockReport::ReadSuccessful => color_print!(Some(Color::Green), None, false, "R"),
+            BlockReport::WriteError => color_print!(Some(Color::Yellow), None, false, "W"),
+            BlockReport::NoStorage => color_print!(Some(Color::Red), Some(Color::Red), false, "X"),
             // We should never have an un unknown block in the validation map.
-            _ => color_print!(Some(Color::White), false, "?"),
+            _ => color_print!(Some(Color::White), None, false, "?"),
         }.expect("REASON");
         if i % map_width == map_width - 1 {
             println!();
@@ -267,16 +267,16 @@ fn print_validation_map(validation_map: &Vec<BlockReport>, map_width: usize) {
         println!();
     }
     print!("Legend: ");
-    color_print!(Some(Color::Green), false, "◼");
+    color_print!(Some(Color::Green), Some(Color::Green), false, "O");
     print!(" Validated   ");
-    color_print!(Some(Color::Blue), false, "R");
+    color_print!(Some(Color::Blue), None, false, "R");
     print!(" Read Error       ");
-    color_print!(Some(Color::Yellow), false, "W");
+    color_print!(Some(Color::Yellow), None, false, "W");
     println!(" Write Error");
     print!("        ");
-    color_print!(Some(Color::Red), false, "✖");
+    color_print!(Some(Color::Red), Some(Color::Red), false, "X");
     print!(" No storage  ");
-    color_print!(Some(Color::Green), false, "R");
+    color_print!(Some(Color::Green), None, false, "R");
     println!(" Read Successful");
 }
 
@@ -380,7 +380,7 @@ fn validate_block(
 
     if test_passed && !restored {
         color_println!(
-            None, true,
+            None, None, true,
             "[Warning] Failed to restore block index: {}",
             block_num
         );
@@ -393,7 +393,8 @@ fn validate_block(
 /// cross-platform support for colorized terminal output
 
 pub fn color_print(
-    color: Option<Color>,
+    fg_color: Option<Color>,
+    bg_color: Option<Color>,
     bold: bool,
     args: std::fmt::Arguments<'_>,
 ) -> io::Result<()> {
@@ -403,32 +404,33 @@ pub fn color_print(
         ColorChoice::Never
     };
     let mut out = StandardStream::stdout(color_choice);
-    out.set_color(ColorSpec::new().set_fg(color).set_bold(bold))?;
+    out.set_color(ColorSpec::new().set_fg(fg_color).set_bg(bg_color).set_bold(bold))?;
     write!(&mut out, "{args}")?;
     out.reset()
 }
 
 pub fn color_println(
-    color: Option<Color>,
+    fg_color: Option<Color>,
+    bg_color: Option<Color>,
     bold: bool,
     args: std::fmt::Arguments<'_>,
 ) -> io::Result<()> {
-    color_print(color, bold, args)?;
+    color_print(fg_color, bg_color, bold, args)?;
     println!();
     Ok(())
 }
 
 #[macro_export]
 macro_rules! color_print {
-    ($color:expr, $bold:expr, $($arg:tt)*) => {
-        $crate::color_print($color, $bold, format_args!($($arg)*))
+    ($fg_color:expr, $bg_color:expr, $bold:expr, $($arg:tt)*) => {
+        $crate::color_print($fg_color, $bg_color, $bold, format_args!($($arg)*))
     };
 }
 
 #[macro_export]
 macro_rules! color_println {
-    ($color:expr, $bold:expr, $($arg:tt)*) => {
-        $crate::color_println($color, $bold, format_args!($($arg)*))
+    ($fg_color:expr, $bg_color:expr, $bold:expr, $($arg:tt)*) => {
+        $crate::color_println($fg_color, $bg_color, $bold, format_args!($($arg)*))
     };
 }
 
@@ -457,33 +459,33 @@ fn main() -> Result<()> {
         let valid_size_kb = count * cli.block_size_kb;
 
         color_println!(
-            None, true,
+            None, None, true,
             "Size of drive: {} bytes ({:.3} GiB)",
             drive_size_bytes,
             drive_size_bytes as f64 / 1024.0 / 1024.0 / 1024.0
         );
 
         color_println!(
-            None, true,
+            None, None, true,
             "Block size: {} bytes ({} KiB)",
             cli.block_size_kb * 1024,
             cli.block_size_kb
         );
 
         color_println!(
-            None, true,
+            None, None, true,
             "Block count: {}",
             num_drive_blocks
         );
 
         color_println!(
-            None, true,
+            None, None, true,
             "Count of valid blocks: {}",
             count
         );
 
         color_println!(
-            None, true,
+            None, None, true,
             "Size of valid blocks: {} bytes ({} KiB, {:.3} MiB, {:.3} GiB)",
             valid_size_kb * 1024,
             valid_size_kb,
@@ -519,7 +521,7 @@ fn main() -> Result<()> {
         let mut orig_data_option = None;
 
         if !cli.no_restore_original {
-            color_println!(None, true, "\nReading original blocks");
+            color_println!(None, None, true, "\nReading original blocks");
             let orig_data = read_blocks(
                 drive.deref_mut(),
                 &spot_blocks,
@@ -546,7 +548,7 @@ fn main() -> Result<()> {
             }
             if has_read_errors {
                 color_println!(
-                    Some(Color::Red), false,
+                    Some(Color::Red), None, false,
                     "I/O errors encountered reading original blocks, exiting"
                 );
                 return Err(anyhow!("I/O errors reading original blocks"));
@@ -555,7 +557,7 @@ fn main() -> Result<()> {
         }
 
         color_println!(
-            None, true,
+            None, None, true,
             "\nWriting blocks with random data"
         );
 
@@ -577,7 +579,7 @@ fn main() -> Result<()> {
         }
 
         color_println!(
-            None, true,
+            None, None, true,
             "\nReading blocks with random data"
         );
         let read_random_blocks = read_blocks(
@@ -621,7 +623,7 @@ fn main() -> Result<()> {
             }
         }
         color_println!(
-            None, true,
+            None, None, true,
             "Validated drive size: {} bytes ({:.3} GiB, {:.3} GB)",
             validated_drive_size,
             validated_drive_size as f64 / 1024.0 / 1024.0 / 1024.0,
@@ -629,7 +631,7 @@ fn main() -> Result<()> {
         );
 
         if let Some(mut orig_data) = orig_data_option {
-            color_println!(None, true, "\nWriting original blocks");
+            color_println!(None, None, true, "\nWriting original blocks");
             write_blocks(drive.deref_mut(), &spot_blocks, &mut orig_data);
         }
     }
